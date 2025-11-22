@@ -1,0 +1,171 @@
+`timescale 1ns / 1ps
+
+module tone_gen(
+    input clk,
+    input enable,
+    input note_c,
+    input note_d,
+    input note_e,
+    input note_f,
+    input play_melody,
+    output reg buzzer_out
+);
+
+    // --------------------------------------------------------
+    // 1. DEFINE FREQUENCIES (Imperial March Key: G Minor)
+    // Formula: Period = 100,000,000 / (Freq * 2)
+    // --------------------------------------------------------
+    // Standard Notes (Switches 0-3)
+    parameter C4 = 191113; 
+    parameter D4 = 170262; 
+    parameter E4 = 151686; 
+    parameter F4 = 143173; 
+    
+    // Star Wars Notes (Low and menacing)
+    parameter G4  = 127551; // 392 Hz
+    parameter Eb4 = 160707; // 311 Hz (E Flat)
+    parameter Bb4 = 107259; // 466 Hz (B Flat)
+    parameter D5  = 85131;  // 587 Hz
+    parameter Eb5 = 80353;  // 622 Hz
+    parameter Fs4 = 135137; // 370 Hz (F Sharp / G Flat)
+    
+    parameter SILENCE = 0;
+
+    // --------------------------------------------------------
+    // 2. NOTE SELECTION
+    // --------------------------------------------------------
+    reg [19:0] period_in; 
+    reg [19:0] melody_period; 
+    
+    always @(*) begin
+        if (play_melody) begin
+            period_in = melody_period; 
+        end else if (note_c) period_in = C4;
+        else if (note_d) period_in = D4;
+        else if (note_e) period_in = E4;
+        else if (note_f) period_in = F4;
+        else period_in = SILENCE;
+    end
+
+    // --------------------------------------------------------
+    // 3. TONE GENERATION 
+    // --------------------------------------------------------
+    reg [19:0] counter = 0;
+    always @(posedge clk) begin
+        if (period_in != 0) begin
+            if (counter >= period_in) begin
+                counter <= 0;
+                buzzer_out <= ~buzzer_out;
+            end else begin
+                counter <= counter + 1;
+            end
+        end else begin
+            buzzer_out <= 0;
+            counter <= 0;
+        end
+    end
+
+    // --------------------------------------------------------
+    // 4. SEQUENCER: Imperial March
+    // --------------------------------------------------------
+    reg [27:0] tempo_cnt = 0; 
+    reg [5:0] note_step = 0;  
+    
+    // Tempo: March tempo is strict. 
+    // 19M ticks = ~0.19 seconds per step (Triplets feel)
+    parameter BEAT_SPEED = 19_000_000; 
+
+    always @(posedge clk) begin
+        if (play_melody) begin
+            if (tempo_cnt >= BEAT_SPEED) begin
+                tempo_cnt <= 0;
+                if (note_step < 56) 
+                    note_step <= note_step + 1;
+                else
+                    note_step <= 0; // Loop
+            end else begin
+                tempo_cnt <= tempo_cnt + 1;
+            end
+        end else begin
+            tempo_cnt <= 0;
+            note_step <= 0;
+        end
+    end
+
+    // The March Melody
+    always @(*) begin
+        case (note_step)
+            // Phrase 1: Dum Dum Dum, Dum-da-Dum, Dum-da-Dum
+            0: melody_period = G4; 
+            1: melody_period = G4; // Hold
+            2: melody_period = G4; // Hold
+            3: melody_period = SILENCE;
+            
+            4: melody_period = G4; 
+            5: melody_period = G4; 
+            6: melody_period = G4; 
+            7: melody_period = SILENCE;
+
+            8: melody_period = G4; 
+            9: melody_period = G4; 
+            10: melody_period = G4; 
+            11: melody_period = SILENCE;
+
+            12: melody_period = Eb4; // Low note
+            13: melody_period = Eb4; 
+            14: melody_period = Bb4; // Quick Up
+            15: melody_period = G4; 
+            16: melody_period = G4; 
+            17: melody_period = G4; // Land on G
+            18: melody_period = SILENCE;
+            
+            19: melody_period = Eb4; 
+            20: melody_period = Eb4; 
+            21: melody_period = Bb4; 
+            22: melody_period = G4; 
+            23: melody_period = G4; 
+            24: melody_period = G4; // Finish Phrase 1
+            25: melody_period = SILENCE;
+            26: melody_period = SILENCE; // Dramatic Pause
+
+            // Phrase 2: High Variation (D5 D5 D5, Eb5-Bb4, F#-Eb, etc)
+            27: melody_period = D5; 
+            28: melody_period = D5; 
+            29: melody_period = D5; 
+            30: melody_period = SILENCE;
+
+            31: melody_period = D5; 
+            32: melody_period = D5; 
+            33: melody_period = D5; 
+            34: melody_period = SILENCE;
+
+            35: melody_period = D5; 
+            36: melody_period = D5; 
+            37: melody_period = D5; 
+            38: melody_period = SILENCE;
+
+            39: melody_period = Eb5; // High note
+            40: melody_period = Eb5;
+            41: melody_period = Bb4; // Drop down
+            42: melody_period = Fs4; // The "Evil" Tritone interval
+            43: melody_period = Fs4; 
+            44: melody_period = Fs4; 
+            45: melody_period = SILENCE;
+
+            46: melody_period = Eb4; 
+            47: melody_period = Eb4; 
+            48: melody_period = Bb4; 
+            49: melody_period = G4; 
+            50: melody_period = G4; 
+            51: melody_period = G4; // Final G
+            
+            52: melody_period = SILENCE;
+            53: melody_period = SILENCE;
+            54: melody_period = SILENCE;
+            55: melody_period = SILENCE; // End loop buffer
+
+            default: melody_period = SILENCE;
+        endcase
+    end
+
+endmodule
