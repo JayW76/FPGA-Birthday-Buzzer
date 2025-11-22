@@ -1,0 +1,79 @@
+`timescale 1ns / 1ps
+
+
+
+module piano(
+    input clk,
+    input btn0, btn1, btn2, btn3, btnR,
+    output reg [31:0] note_half_period,
+    output reg play_enable,
+    output reg [3:0] current_note_index
+);
+    // Note half periods (100 MHz clock)
+    localparam C4 = 191574;
+    localparam D4 = 170068;
+    localparam E4 = 151981;
+    localparam F4 = 143265;
+    localparam G4 = 127551;
+    localparam A4 = 113636;
+    localparam B4 = 101028;
+    localparam C5 = 95489;
+
+    // Simple melody sequence (C4-D4-E4-F4)
+    reg [3:0] melody [0:7];
+    initial begin
+        melody[0] = 0; // C4
+        melody[1] = 1; // D4
+        melody[2] = 2; // E4
+        melody[3] = 3; // F4
+        melody[4] = 0;
+        melody[5] = 1;
+        melody[6] = 2;
+        melody[7] = 3;
+    end
+
+    reg [2:0] melody_index = 0;
+    reg [23:0] melody_counter = 0; // note duration counter
+
+    always @(posedge clk) begin
+        if(btn0) begin
+            note_half_period <= C4;
+            play_enable <= 1;
+            current_note_index <= 0;
+        end else if(btn1) begin
+            note_half_period <= D4;
+            play_enable <= 1;
+            current_note_index <= 1;
+        end else if(btn2) begin
+            note_half_period <= E4;
+            play_enable <= 1;
+            current_note_index <= 2;
+        end else if(btn3) begin
+            note_half_period <= F4;
+            play_enable <= 1;
+            current_note_index <= 3;
+        end else if(btnR) begin
+            // Melody sequencer
+            play_enable <= 1;
+            case(melody[melody_index])
+                0: note_half_period <= C4;
+                1: note_half_period <= D4;
+                2: note_half_period <= E4;
+                3: note_half_period <= F4;
+                default: note_half_period <= C4;
+            endcase
+            current_note_index <= melody[melody_index];
+
+            if(melody_counter >= 24'd10_000_000) begin
+                melody_counter <= 0;
+                melody_index <= melody_index + 1;
+                if(melody_index >= 7) melody_index <= 0;
+            end else begin
+                melody_counter <= melody_counter + 1;
+            end
+        end else begin
+            play_enable <= 0;
+        end
+    end
+    
+endmodule
